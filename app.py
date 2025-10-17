@@ -293,15 +293,64 @@ def grades():
                          role=role,
                          username=username)
 
-@app.route('/payments', methods=['GET','POST'])
+@app.route('/payments', methods=['GET', 'POST'])
 def payments():
-    if not require_login(): return redirect(url_for('login'))
-    if request.method == 'POST':
-        p = Payment(student_id=int(request.form['student_id']), amount=float(request.form['amount']), status=request.form['status'])
-        db.session.add(p); db.session.commit()
+    if not require_login(): 
+        return redirect(url_for('login'))
+
+    role = session.get('role')
+
+    # --- Khi admin thêm phiếu mới ---
+    if request.method == 'POST' and role == 'admin':
+        student_id = int(request.form['student_id'])
+        amount = float(request.form['amount'])
+        status = request.form['status']
+
+        payment = Payment(student_id=student_id, amount=amount, status=status)
+        db.session.add(payment)
+        db.session.commit()
+        flash("Đã thêm khoản thanh toán mới", "success")
+
+    # --- Khi sinh viên xác nhận đã nộp ---
+    if request.args.get('action') == 'confirm' and role == 'student':
+        payment_id = int(request.args.get('id'))
+        payment = Payment.query.get(payment_id)
+        if payment and payment.status == 'pending':
+            payment.status = 'paid'
+            db.session.commit()
+            flash("Xác nhận đã nộp tiền thành công!", "success")
+        else:
+            flash("Phiếu không hợp lệ hoặc đã xác nhận trước đó.", "warning")
+
+    # --- Dữ liệu hiển thị ---
     payments = Payment.query.all()
     students = Student.query.all()
-    return render_template('payments.html', payments=payments, students=students)
+
+    # --- Thống kê ---
+    total_paid = db.session.query(db.func.sum(Payment.amount)).filter(Payment.status == "paid").scalar() or 0
+    total_pending = db.session.query(db.func.sum(Payment.amount)).filter(Payment.status == "pending").scalar() or 0
+    total_withdrawn = db.session.query(db.func.sum(Payment.amount)).filter(Payment.status == "withdrawn").scalar() or 0
+    total_free = db.session.query(db.func.sum(Payment.amount)).filter(Payment.status == "free").scalar() or 0
+
+    data = {
+        "khoan_phai_nop": total_pending,
+        "khoan_duoc_mien": total_free,
+        "khoan_da_nop": total_paid,
+        "khoan_da_rut": total_withdrawn,
+        "tong_no_chung": total_pending - total_paid,
+        "tong_du_chung": total_paid - total_withdrawn,
+        "phieu_da_thu": total_paid,
+        "phieu_da_rut": total_withdrawn,
+        "phieu_hoa_don": 0
+    }
+
+    return render_template(
+        'payments.html',
+        payments=payments,
+        students=students,
+        data=data,
+        role=role
+    )
 
 @app.route('/news', methods=['GET','POST'])
 def news():
