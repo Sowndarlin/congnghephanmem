@@ -1,19 +1,181 @@
 {% extends "base.html" %}
 {% block content %}
-  <h2>Payments</h2>
-  <form method="post">
-    <select name="student_id">
-      {% for s in students %}<option value="{{ s.id }}">{{ s.student_id }} - {{ s.full_name }}</option>{% endfor %}
-    </select>
-    <input name="amount" placeholder="Amount" required>
-    <select name="status"><option>pending</option><option>paid</option></select>
-    <button type="submit">Add Payment</button>
-  </form>
+<div class="container mt-4">
 
-  <table>
-    <tr><th>Student</th><th>Amount</th><th>Status</th></tr>
-    {% for p in payments %}
-    <tr><td>{{ p.student_id }}</td><td>{{ p.amount }}</td><td>{{ p.status }}</td></tr>
-    {% endfor %}
+  <!-- Dashboard thống kê -->
+  <div class="row">
+    <div class="col-md-3">
+      <div class="card text-white bg-dark mb-3">
+        <div class="card-body">
+          <h4>{{ "{:,.0f}".format(data.khoan_phai_nop) }}</h4>
+          <p>Khoản phải nộp</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-secondary mb-3">
+        <div class="card-body">
+          <h4>{{ "{:,.0f}".format(data.khoan_duoc_mien) }}</h4>
+          <p>Khoản được miễn</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-info mb-3">
+        <div class="card-body">
+          <h4>{{ "{:,.0f}".format(data.khoan_da_nop) }}</h4>
+          <p>Khoản đã nộp</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-danger mb-3">
+        <div class="card-body">
+          <h4>{{ "{:,.0f}".format(data.khoan_da_rut) }}</h4>
+          <p>Khoản đã rút</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hàng tiếp theo -->
+  <div class="row">
+    <div class="col-md-3">
+      <div class="card text-white bg-warning mb-3">
+        <div class="card-body">
+          <h4>{{ "{:,.0f}".format(data.tong_no_chung) }}</h4>
+          <p>Tổng nợ chung</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-success mb-3">
+        <div class="card-body">
+          <h4>{{ "{:,.0f}".format(data.tong_du_chung) }}</h4>
+          <p>Tổng dư chung</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-primary mb-3">
+        <div class="card-body">
+          <h4>{{ "{:,.0f}".format(data.phieu_da_thu) }}</h4>
+          <p>Phiếu đã thu</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-white bg-danger mb-3">
+        <div class="card-body">
+          <h4>{{ "{:,.0f}".format(data.phieu_da_rut) }}</h4>
+          <p>Phiếu đã rút</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phiếu hóa đơn -->
+  <div class="row">
+    <div class="col-md-3">
+      <div class="card text-white bg-dark mb-3">
+        <div class="card-body">
+          <h4>{{ "{:,.0f}".format(data.phieu_hoa_don) }}</h4>
+          <p>Phiếu hóa đơn</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form thêm phiếu (chỉ admin) -->
+  {% if role == 'admin' %}
+  <h3 class="mt-4">Thêm phiếu thanh toán</h3>
+  <form method="post" class="row g-3 mb-4">
+    <div class="col-md-4">
+      <label class="form-label">Sinh viên</label>
+      <select class="form-select" name="student_id" required>
+        <option value="">-- Chọn sinh viên --</option>
+        {% for s in students %}
+        <option value="{{ s.id }}">{{ s.full_name }} ({{ s.student_id }})</option>
+        {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Số tiền</label>
+      <input type="number" step="1000" name="amount" class="form-control" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Trạng thái</label>
+      <select class="form-select" name="status" required>
+        <option value="pending">pending (phải nộp)</option>
+        <option value="paid">paid (đã nộp)</option>
+        <option value="withdrawn">withdrawn (đã rút)</option>
+        <option value="free">free (miễn phí)</option>
+      </select>
+    </div>
+    <div class="col-12">
+      <button type="submit" class="btn btn-success">Thêm phiếu</button>
+    </div>
+  </form>
+  {% endif %}
+
+  <!-- Danh sách phiếu -->
+  <h3 class="mt-4">
+    {% if role == 'student' %}
+      Xác nhận đã đóng
+    {% else %}
+      Danh sách phiếu
+    {% endif %}
+  </h3>
+
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Sinh viên</th>
+        <th>Số tiền</th>
+        <th>Trạng thái</th>
+        {% if role == 'student' %}<th>Thao tác</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in payments %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td>
+          {% for s in students if s.id == p.student_id %}
+            {{ s.full_name }} ({{ s.student_id }})
+          {% endfor %}
+        </td>
+        <td>{{ "{:,.0f}".format(p.amount) }}</td>
+        <td>
+          {% if p.status == 'pending' %}
+            <span class="badge bg-danger">Phải nộp</span>
+          {% elif p.status == 'paid' %}
+            <span class="badge bg-success">Đã nộp</span>
+          {% elif p.status == 'withdrawn' %}
+            <span class="badge bg-warning text-dark">Đã rút</span>
+          {% elif p.status == 'free' %}
+            <span class="badge bg-primary">Miễn phí</span>
+          {% endif %}
+        </td>
+
+        {% if role == 'student' %}
+        <td>
+          {% if p.status == 'pending' %}
+          <a href="{{ url_for('payments', action='confirm', id=p.id) }}" 
+             class="btn btn-sm btn-success"
+             onclick="return confirm('Bạn có chắc chắn đã nộp tiền?')">
+            Xác nhận đã đóng
+          </a>
+          {% else %}
+          -
+          {% endif %}
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
   </table>
+
+</div>
 {% endblock %}
